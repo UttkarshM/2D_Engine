@@ -103,7 +103,7 @@ bool gl_init(BumpAllocator* transientStorage)
 // Load the texture
     {
     int width, height, channels;
-    char* data = (char*)stbi_load("C:/Users/uttka/Desktop/god/assets/texture/dice.png", &width, &height, &channels, 4);
+    char* data = (char*)stbi_load("C:/Users/uttka/Desktop/god/assets/texture/smiles.png", &width, &height, &channels, 4);
     if(!data)
     {
       EN_ASSERT(false, "Failed to load texture");
