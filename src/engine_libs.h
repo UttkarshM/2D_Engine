@@ -7,18 +7,21 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-// #############################################################################
-//                           Defines
-// #############################################################################
+
 #ifdef _WIN32
 #define DEBUG_BREAK() __debugbreak()
 #elif __linux__
 #define DEBUG_BREAK() __builtin_debugtrap()
 #endif
 
-// #############################################################################
-//                           Logging
-// #############################################################################
+#define BIT(x) 1<<(x)
+#define KB(x) ((unsigned long long) 1024*x)
+#define MB(x) ((unsigned long long) 1024*KB(x))
+#define GB(x) ((unsigned long long) 1024*MB(x))
+
+
+
+//logging
 enum TextColor
 {  
   TEXT_COLOR_BLACK,
@@ -241,3 +244,14 @@ bool copy_file(char *fileName, char *outputName, BumpAllocator *bumpAllocator) {
   }
   return true;
 }
+
+//maths
+
+struct IVec2{
+  int x;
+  int y;
+};
+struct Vec2{
+  float x;
+  float y;
+};
