@@ -1,8 +1,8 @@
-
 #include "gl_renderer.h"
 #include "engine_libs.h"
 #include "render_interface.h"
-// #include "input.h"
+#include <iostream>
+#include <ostream>
 
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -13,6 +13,7 @@ struct GLContext
   GLuint textureID;
   GLuint transformSBOID;
   GLuint screenSizeID;
+  GLuint orthoProjectionID;
 };
 
 static GLContext glContext;
@@ -103,7 +104,7 @@ bool gl_init(BumpAllocator* transientStorage)
 // Load the texture
     {
     int width, height, channels;
-    char* data = (char*)stbi_load("C:/Users/uttka/Desktop/god/assets/texture/smiles.png", &width, &height, &channels, 4);
+    char* data = (char*)stbi_load("C:/Users/uttka/Desktop/god/assets/texture/dice.png", &width, &height, &channels, 4);
     if(!data)
     {
       EN_ASSERT(false, "Failed to load texture");
@@ -130,12 +131,13 @@ bool gl_init(BumpAllocator* transientStorage)
   {
     glGenBuffers(1, &glContext.transformSBOID);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, glContext.transformSBOID);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Transform)*MAX_TRANSFORMS ,renderData.transforms,GL_DYNAMIC_DRAW); //we use dynamic as we will still keep the same allocation when we change the data
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Transform)*MAX_TRANSFORMS ,renderData->transforms,GL_DYNAMIC_DRAW); //we use dynamic as we will still keep the same allocation when we change the data
   }
 
   // Uniforms
   {
     glContext.screenSizeID = glGetUniformLocation(glContext.programID, "screen_size");
+    glContext.orthoProjectionID = glGetUniformLocation(glContext.programID, "orthoProjection");
   }
   
   // Your font is not using sRGB, for example (not that it matters there, because no actual color is sampled from it)
@@ -152,21 +154,39 @@ bool gl_init(BumpAllocator* transientStorage)
   return true;
 }
 
-void gl_render()
-{
-  glClearColor(119.0f / 255.0f, 33.0f / 255.0f, 111.0f / 255.0f, 1.0f);
-  glClearDepth(0.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glViewport(0, 0, input.screenSizeX, input.screenSizeY);
-  
-  Vec2 screen_size = { (float)input.screenSizeX,(float)input.screenSizeY};
-  glUniform2fv(glContext.screenSizeID,1,&screen_size.x);
-  {
-    //copies transforms to the gpu
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0 ,sizeof(Transform)*renderData.transformCount,  renderData.transforms);
 
-    glDrawArraysInstanced(GL_TRIANGLES, 0, 6,renderData.transformCount); //the transformcount is the glIndex that we use in the shader language
-    renderData.transformCount = 0;
-  }
-  // glDrawArrays(GL_TRIANGLES, 0, 6);
+void gl_render() {
+    glClearColor(119.0f / 255.0f, 33.0f / 255.0f, 111.0f / 255.0f, 1.0f);
+    glClearDepth(0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0, 0, input->screenSize.x, input->screenSize.y);
+  
+    Vec2 screen_size = { (float)input->screenSize.x, (float)input->screenSize.y };
+    glUniform2fv(glContext.screenSizeID, 1, &screen_size.x);
+
+    OrthographicCamera2D camera = renderData->gameCamera;
+    Mat4 orthoProjection = orthographic_projection(
+        camera.position.x - camera.dimensions.x / 2.0f,
+        camera.position.x + camera.dimensions.x / 2.0f,
+        camera.position.y - camera.dimensions.y / 2.0f,
+        camera.position.y + camera.dimensions.y / 2.0f
+    );
+
+    std::cout << "Ortho Projection: " << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            std::cout << orthoProjection[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "Camera Position: (" << camera.position.x << ", " << camera.position.y << ")" << std::endl;
+    std::cout << "Camera Dimensions: (" << camera.dimensions.x << ", " << camera.dimensions.y << ")" << std::endl;
+
+    glUniformMatrix4fv(glContext.orthoProjectionID, 1, GL_FALSE, &orthoProjection.ax);
+
+    // Copies transforms to the GPU
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Transform) * renderData->transformCount, renderData->transforms);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, renderData->transformCount); // The transform count is the glIndex that we use in the shader language
+    renderData->transformCount = 0;
 }

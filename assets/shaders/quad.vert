@@ -16,6 +16,7 @@ layout (std430, binding = 0) buffer TransformSBO
 
 
 uniform vec2 screen_size;
+uniform mat4 orthoProjection;
 
 //output
 layout (location = 0) out vec2 textureCoordsOut;
@@ -25,16 +26,6 @@ void main()
 {
 
   Transform transform = transforms[gl_InstanceID];
-
-  // vec2 vertices[6] =
-  // {
-  //   // vec2(-0.5,  0.5),
-  //   vec2(-0.5, -0.5),
-  //   vec2( 0.5,  0.5),
-  //   vec2( 0.5,  0.5),
-  //   vec2(-0.5, -0.5),
-  //   vec2( 0.5, -0.5)
-  // };
 
   vec2 vertices[6] = {
     transform.pos,    //Top Left (anchor point)
@@ -59,13 +50,9 @@ void main()
     vec2(right,bottom),
   };
 
-  // gl_Position = vec4(vertices[gl_VertexID], 1.0, 1.0); //gl_VertexID corresponds to a draw call which indexes
-  
   {
     vec2 vertexPos = vertices[gl_VertexID];
-    vertexPos.y = -vertexPos.y + screen_size.y;
-    vertexPos = 2.0 * (vertexPos / screen_size) - 1.0;
-    gl_Position = vec4(vertexPos, 0.0, 1.0);
+    gl_Position = orthoProjection*vec4(vertexPos, 0.0, 1.0);
   }
   
   textureCoordsOut = textureCoords[gl_VertexID];

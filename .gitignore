@@ -1,4 +1,8 @@
 *.exe
 *.ilk
 *.pdb
+*.dll
 test.h
+*.exp
+*.lib
+*.a
