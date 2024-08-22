@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <stdio.h>
 #include <cstddef>
 #include <cstring>
@@ -96,7 +97,44 @@ void _log(char* prefix, char* msg, TextColor textColor, Args... args)
     EN_ERROR("Assertion HIT!")    \
   }                               \
 }
+template<typename T, int N>
+struct Array
+{
+  static constexpr int maxElements = N;
+  int count = 0;
+  T elements[N];
 
+  T& operator[](int idx)
+  {
+    EN_ASSERT(idx >= 0, "idx negative!");
+    EN_ASSERT(idx < count, "Idx out of bounds!");
+    return elements[idx];
+  }
+
+  int add(T element)
+  {
+    EN_ASSERT(count < maxElements, "Array Full!");
+    elements[count] = element;
+    return count++;
+  }
+
+  void remove_idx_and_swap(int idx)
+  {
+    EN_ASSERT(idx >= 0, "idx negative!");
+    EN_ASSERT(idx < count, "idx out of bounds!");
+    elements[idx] = elements[--count];
+  }
+
+  void clear()
+  {
+    count = 0;
+  }
+
+  bool is_full()
+  {
+    return count == N;
+  }
+};
 
 //Bump allocator
 
@@ -137,7 +175,7 @@ char *bump_alloc(BumpAllocator *bumpAllocator, size_t size) {
 
 // #########################################
 
-long long get_timestamp(char *file) {
+long long get_timestamp(const char *file) {
   struct stat file_stat = {};
   stat(file, &file_stat);
 
@@ -254,6 +292,68 @@ bool copy_file(char *fileName, char *outputName, BumpAllocator *bumpAllocator) {
 //maths
 
 
+int sign(int x)
+{
+  return (x >= 0)? 1 : -1;
+}
+
+float sign(float x)
+{
+  return (x >= 0.0f)? 1.0f : -1.0f;
+}
+
+int min(int a, int b)
+{
+  return (a < b)? a : b;
+}
+
+int max(int a, int b)
+{
+  return (a > b)? a : b;
+}
+
+long long max(long long a, long long b)
+{
+  if(a > b)
+  {
+    return a;
+  }
+
+  return b;
+}
+
+float max(float a, float b)
+{
+  if(a > b)
+  {
+    return a;
+  }
+
+  return b;
+}
+
+float min(float a, float b)
+{
+  if(a < b)
+  {
+    return a;
+  }
+
+  return b;
+}
+
+float approach(float current, float target, float increase)
+{
+  if(current < target)
+  {
+    return min(current + increase, target);
+  }
+  return max(current - increase, target);
+}
+
+float lerp(float a,float b,float t){
+  return a + (b - a)*t;
+}
 
 
 struct IVec2{
@@ -264,7 +364,24 @@ struct IVec2{
   {
     return {x - other.x, y - other.y};
   }
+  IVec2& operator-=(int value)
+  {
+    x-=value;
+    y-=value;
+    return *this;
+  }
+  IVec2& operator+=(int value){
+    x+=value;
+    y+=value;
+    return *this;
+  }
+
+  IVec2 operator/(int scalar){
+    return {x/scalar, y/scalar};
+  }
 };
+
+
 struct Vec2{
   float x;
   float y;
@@ -283,6 +400,20 @@ struct Vec2{
 Vec2 vec_2(IVec2 v)
 {
   return Vec2{(float)v.x, (float)v.y};
+}
+
+Vec2 lerp(Vec2 a, Vec2 b, float t){
+  Vec2 result;
+  result.x = lerp(a.x,b.x,t);
+  result.y = lerp(a.y,b.y,t);
+  return result;
+}
+IVec2 lerp(IVec2 a, IVec2 b,float t){
+  IVec2 result;
+
+  result.x = (int)floorf(lerp((float)a.x,(float)b.x,t));
+  result.y = (int)floorf(lerp((float)a.y,(float)b.y,t));
+  return result;
 }
 
 struct Vec4
@@ -347,6 +478,49 @@ struct Mat4
     return values[col];
   }
 };
+
+struct Rect{
+  Vec2 pos;
+  Vec2 size;
+};
+
+struct IRect{
+  IVec2 pos;
+  IVec2 size;
+};
+
+
+// checking if it comes under the rectangle(bounding box)
+bool point_in_rect(Vec2 point, Rect rect)
+{
+  return(
+    point.x >= rect.pos.x &&
+    point.x <= rect.pos.x + rect.size.x &&
+    point.y >= rect.pos.y &&
+    point.y <= rect.pos.y + rect.pos.y
+  );
+}
+
+bool point_in_rect(Vec2 point, IRect rect){
+  return(
+    point.x >= rect.pos.x &&
+    point.x <= rect.pos.x + rect.size.x &&
+    point.y >= rect.pos.y &&
+    point.y <= rect.pos.y + rect.size.y
+  );
+}
+
+bool rect_collision(IRect a, IRect b){
+
+  return (
+  a.pos.x + a.size.x >= b.pos.x &&
+  a.pos.x <= b.pos.x + b.size.x &&
+  a.pos.y + a.size.y >= b.pos.y &&
+  a.pos.y < b.pos.y + b.size.y);
+
+}
+
+
 
 Mat4 orthographic_projection(float left, float right, float top, float bottom)
 {

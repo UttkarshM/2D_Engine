@@ -10,6 +10,8 @@
 static HWND window; 
 static HDC dc;
 
+static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT_ptr;
+
 // #############################################################################
 //                           Platform Implementations
 // #############################################################################
@@ -172,7 +174,8 @@ bool platform_create_window(int width, int height, char* title)
       (PFNWGLCHOOSEPIXELFORMATARBPROC)platform_load_gl_function("wglChoosePixelFormatARB");
     wglCreateContextAttribsARB =
       (PFNWGLCREATECONTEXTATTRIBSARBPROC)platform_load_gl_function("wglCreateContextAttribsARB");
-
+    wglSwapIntervalEXT_ptr = 
+    (PFNWGLSWAPINTERVALEXTPROC)platform_load_gl_function("wglSwapIntervalEXT");
     if(!wglCreateContextAttribsARB || !wglChoosePixelFormatARB)
     {
       EN_ASSERT(false, "Failed to load OpenGL functions");
@@ -343,6 +346,9 @@ void* platform_load_gl_function(char* funName)
 void platform_swap_buffers()
 {
   SwapBuffers(dc);
+}
+void platform_set_vsync(bool vSync){
+  wglSwapIntervalEXT_ptr(vSync);
 }
 
 void* platform_load_dynamic_library(char* dll)

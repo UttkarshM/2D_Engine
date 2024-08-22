@@ -3,7 +3,6 @@
 #include "assets.h"
 #include "input.h"
 
-constexpr int MAX_TRANSFORMS = 1000;
 
 struct OrthographicCamera2D
 {
@@ -25,7 +24,8 @@ struct RenderData{
     OrthographicCamera2D gameCamera;
     OrthographicCamera2D uiCamera;
     int transformCount;
-    Transform transforms[MAX_TRANSFORMS];
+    // Transform transforms[MAX_TRANSFORMS];
+    Array<Transform,1000> transforms;
 };
 //globals
 
@@ -33,24 +33,42 @@ static RenderData* renderData;
 
 //ivec2 makes u handle only single pixel even if due to mapping a single pixel in screen might map to 3 pixels in world
 //if we return vec2 it is possible as decimals 
-IVec2 screen_to_world(IVec2 screenPos) //mapping the (mouse)screen to the camera coords
+IVec2 screen_to_world(IVec2 screenPos)
 {
   OrthographicCamera2D camera = renderData->gameCamera;
 
-  int x_pos = screenPos.x / input->screenSize.x * (int)camera.dimensions.x;
+  int xPos = (float)screenPos.x / 
+             (float)input->screenSize.x * 
+             camera.dimensions.x; // [0; dimensions.x]
 
-  // we are offsetting as the origin points for camera is at the center whereas the origin point for the screen is top left
-  x_pos += -camera.dimensions.x / 2.0f + camera.position.x;
+  // Offset using dimensions and position
+  xPos += -camera.dimensions.x / 2.0f + camera.position.x;
 
-  int y_pos = screenPos.y / input->screenSize.y * (int)camera.dimensions.y;
+  int yPos = (float)screenPos.y / 
+             (float)input->screenSize.y * 
+             camera.dimensions.y; // [0; dimensions.y]
 
-  // same offsetting used above for xpos
-  y_pos += -camera.dimensions.y / 2.0f - camera.position.y;
+  // Offset using dimensions and position
+  yPos += camera.dimensions.y / 2.0f + camera.position.y;
 
-  return {x_pos, y_pos};
+  return {xPos, yPos};
 }
 
+void draw_quad(Transform transform)
+{
+  renderData->transforms.add(transform);
+}
 
+void draw_quad(Vec2 pos, Vec2 size)
+{
+  Transform transform = {};
+  transform.pos = pos - size / 2.0f;
+  transform.size = size;
+  transform.atlas_offset = {0, 0};
+  transform.sprite_size = {1, 1}; // Indexing into white
+
+  renderData->transforms.add(transform);
+}
 void draw_sprite(SpriteID spriteID,Vec2 pos,Vec2 size){
     Sprite sprite = get_sprite(spriteID);
     Transform transform = {};
@@ -62,7 +80,7 @@ void draw_sprite(SpriteID spriteID,Vec2 pos,Vec2 size){
     transform.atlas_offset = sprite.atlas_offset;
     transform.sprite_size = sprite.sprite_size;
 
-    renderData->transforms[renderData->transformCount++]=transform;
+    renderData->transforms.add(transform);
 }
 void draw_sprite(SpriteID spriteID, Vec2 pos)
 {
@@ -76,7 +94,7 @@ void draw_sprite(SpriteID spriteID, Vec2 pos)
   transform.atlas_offset = sprite.atlas_offset;
   transform.sprite_size = sprite.sprite_size;
 
-  renderData->transforms[renderData->transformCount++] = transform;
+renderData->transforms.add(transform);
 }
 
 void draw_sprite(SpriteID spriteID, IVec2 pos)
