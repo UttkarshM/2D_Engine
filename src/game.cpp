@@ -3,6 +3,12 @@
 #include "engine_libs.h"
 #include "input.h"
 #include "render_interface.h"
+#include "sound.h"
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <utility>
 #define step 3
 
 
@@ -72,13 +78,107 @@ IRect get_player_rect(){
   };
 }
 
+bool inside_rect(IRect hitbox, IVec2 pos){
+  if(hitbox.pos.x<=pos.x && hitbox.pos.x+hitbox.size.x>=pos.x
+    && hitbox.pos.y<=pos.y && hitbox.pos.y+hitbox.size.y>=pos.y
+  ){
+    return true;
+  }
+  return false;
+}
+
+bool inside_static_rect(IRect hitbox, IVec2 pos){
+  if(((hitbox.pos.x<=pos.x && hitbox.pos.x+hitbox.size.x>=pos.x) || (hitbox.pos.x <= pos.x - 4 && hitbox.pos.x+hitbox.size.x>=pos.x - 4)) //dies as he reaches halfway of the block
+    && ((hitbox.pos.y<=pos.y && hitbox.pos.y+hitbox.size.y>=pos.y) || (hitbox.pos.y <= pos.y - 4 && hitbox.pos.y+hitbox.size.y>=pos.y -4))
+  ){
+    return true;
+  }
+  return false;
+}
+
 
 IRect get_solid_rect(Solid solid){
   Sprite sprite = get_sprite(solid.spriteID);
   return {solid.pos - sprite.sprite_size/2,sprite.sprite_size};
 }
 
-void simulate(){
+bool save_tile_set() {
+  std::fstream file, file1;
+
+  file.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile", std::ios::out);
+  if (!file) {
+    EN_ERROR("failed to open file");
+    return false; // Moved this line inside the if-block.
+  }
+
+  file << ""; // Empties the file.
+  file.close();
+
+  file1.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile", std::ios::app);
+  
+  // Open file in append mode to write data.
+  if (!file1) {
+    EN_ERROR("failed to open file in append mode");
+    return false;
+  }
+  std::string coOrds = "";
+  for (int y = 0; y < WORLD_GRID.y; y++) {
+    for (int x = 0; x < WORLD_GRID.x; x++) {
+      Tile* tile = get_tile(x, y);
+      if(tile->isVisible){
+        coOrds+=std::to_string(x)+"-"+std::to_string(y)+"\n";
+      }
+    }
+  }
+  coOrds.pop_back();
+  file1 << coOrds;
+
+  file1.close(); // Correctly close the file opened in append mode.
+  return true;
+}
+
+IVec2 parse_coords(std::string str) {
+    int ind = 0;
+    int res[2] = {0, 0}; // initialize both coordinates to zero
+    for (int i = 0; i < str.length(); i++) {
+        if (str[i] == '-') {
+            ind++; // Move to the next index when a '-' is encountered
+            if (ind > 1) break; // Prevent out-of-bounds error
+        } else {
+            res[ind] = res[ind] * 10 + (str[i] - '0'); // Accumulate the current number
+        }
+    }
+    IVec2 r = {res[0], res[1]};
+    return r;
+}
+
+std::vector<std::pair<int, int>> load_tile_set(GameState* gameState){
+    std::fstream file;
+    std::string temp;
+
+    std::vector<std::pair<int, int>> tiles = {};
+
+    file.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile",std::ios::in);
+    if (!file) {
+      EN_ERROR("failed to open file");
+      return {}; // Moved this line inside the if-block.
+    }
+    while(std::getline(file,temp)){
+      // EN_TRACE("in loop");
+      if(temp=="\n"){
+        continue;
+      }
+      
+      IVec2 coords = parse_coords(temp);
+      gameState->worldGrid[coords.x][coords.y].isVisible=true;
+    }
+    file.close();
+    return tiles;
+}
+
+
+void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
+
   float dt = UPDATE_DELAY;
   {
     Player& player = gameState->player;
@@ -94,15 +194,38 @@ void simulate(){
     constexpr float fallSpeed = 2.6f;
     constexpr float jumpSpeed = -3.0f;
 
+//bounds    
+    if(player.pos.x>320){ //exit
+      player.pos={0,0};
+      EN_TRACE("Won");
+    }
+    if(player.pos.x<0){ //stops from falling off of the map
+      player.pos={0,0};
+    }
+
+
+
+
     if((just_pressed(JUMP) || just_pressed(MOVE_UP)) && grounded){
       player.speed.y = jumpSpeed;
       player.speed.x+=player.solidSpeed.x;
       player.speed.y+=player.solidSpeed.y;
       grounded = false;
+
+      play_sound("jump");
+    }
+    if(!grounded){
+      player.animationState = PLAYER_ANIMATE_JUMP;
     }
 
     if(is_down(MOVE_LEFT))
     {
+      if(grounded)
+      {
+        player.animationState = PLAYER_ANIMATE_RUN;
+      }
+
+
       float mult = 1.0f;
       if(player.speed.x > 0.0f){
         mult = 3.0f;
@@ -115,9 +238,50 @@ void simulate(){
       if(player.speed.x < 0.0f){
         mult = 3.0f;
       }
+      player.runAnimateTime += dt; 
       player.speed.x = approach(player.speed.x, runSpeed, runAcceleration*mult*dt);
     }
+    if(player.speed.x >0){
+      player.renderOptions = 0;
+    }
+    if(player.speed.x < 0){
+      player.renderOptions = RENDER_OPTION_FLIP_X;
+    }
 
+    {
+      IRect playerRect = get_player_rect();
+      for(int i=0;i<gameState->static_solids.count;i++){
+      if(inside_static_rect(playerRect, gameState->static_solids[i].pos)){
+        player.pos={-160,-90};
+        EN_TRACE("player killed");
+      }
+    }
+    }
+
+    //Map
+    if(just_pressed(MOUSE_MIDDLE))
+      {
+
+        if(loaded_tiles.empty()){
+          EN_ERROR("couldnt load");
+        }
+        else{
+          EN_TRACE("loaded tile set");
+        }
+
+        player.pos ={8*2,8+2};
+        player.speed ={0,0};
+    }
+
+    if(just_pressed(SAVE_STATE)){ //semicolon
+        if(!save_tile_set()){
+          EN_ERROR("couldnt save");
+        }
+        else{
+          EN_TRACE("saved tile set");
+        }
+    }
+    //Physics
     //Friction
     if(!is_down(MOVE_LEFT) && !is_down(MOVE_RIGHT)){
       if(grounded){
@@ -130,10 +294,7 @@ void simulate(){
 
     //gravity
     player.speed.y = approach(player.speed.y, fallSpeed,gravity *dt);
-    if(is_down(MOUSE_MIDDLE))
-      {
-        player.pos ={0,0};
-      }
+
 
     {
       IRect playerRect = get_player_rect();
@@ -297,7 +458,7 @@ void simulate(){
         {
           solid.remainder.x -= moveX;
           int moveSign = sign(solid.keyframes[nextKeyframeIdx].x - 
-                              solid.keyframes[solid.keyframeIdx].x);
+                              solid.keyframes[solid.keyframeIdx].x); //for direction
 
           // Move the player in Y until collision or moveY is exausted
           auto moveSolidX = [&]
@@ -316,7 +477,7 @@ void simulate(){
               {
                 // Move the player rect
                 playerRect.pos.x += moveSign;
-                player.solidSpeed.x = solid.speed.x * (float)moveSign / 20.0f;
+                player.solidSpeed.x = solid.speed.x * (float)moveSign *solid.slip / 20.0f;
 
                 // destroy player if there is a collision
                 IVec2 playerGridPos = get_grid_pos(player.pos);
@@ -439,6 +600,10 @@ void simulate(){
     }
   }
 
+
+  int once = 0; //initial bitmasking for the tiles loaded
+  
+
   if(is_down(MOUSE_RIGHT))
   {
     IVec2 worldPos = screen_to_world(input->mousePos);
@@ -449,20 +614,25 @@ void simulate(){
       tile->isVisible = false;
       updateTiles = true;
     }
+    save_tile_set();
   }
 
-  if(updateTiles)
+  if(updateTiles || !once)
   {
+    once++;
     int neighbourOffsets[24] = { 0,-1,  -1, 0,     1, 0,       0, 1,   
 
                                 -1,-1,   1,-1,    -1, 1,       1, 1,
 
                                  0,-2,  -2, 0,     2, 0,       0, 2};
 
+    
+    
     for(int y = 0; y < WORLD_GRID.y; y++)
     {
       for(int x = 0; x < WORLD_GRID.x; x++)
       {
+
         Tile* tile = get_tile(x, y);
 
         if(!tile->isVisible)
@@ -513,18 +683,26 @@ void simulate(){
         }
       }
     }
+
   }
 
 }
 
 
-EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn,float dt)
+EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn,float dt,SoundState* soundStateIn)
+
 {
+  {
+  std::vector<std::pair<int,int>> loaded_tiles = load_tile_set(gameStateIn);
+  // if(loaded_tiles.size()<10){
+  //   EN_ERROR("NOTHING");
+  // }
   if(renderData != renderDataIn)
   {
     gameState = gameStateIn;
     renderData = renderDataIn;
     input = inputIn;
+    soundState = soundStateIn;
   }
 
   if(!gameState->initialized)
@@ -532,6 +710,12 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
     renderData->gameCamera.dimensions = {WORLD_WIDTH, WORLD_HEIGHT};
     gameState->initialized = true;
 
+    {
+      Player& player = gameState->player;
+      player.animationSprites[PLAYER_ANIMATE_IDLE] = SPRITE_CELESTE;
+      player.animationSprites[PLAYER_ANIMATE_JUMP] = SPRITE_CELESTE_JUMP;
+      player.animationSprites[PLAYER_ANIMATE_RUN] = SPRITE_CELESTE_RUN;
+    }
     // Tileset
     {
       IVec2 tilesPosition = {48, 0};
@@ -559,6 +743,7 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
       gameState->keyMappings[MOUSE_RIGHT].keys.add(KEY_MOUSE_RIGHT);
       gameState->keyMappings[JUMP].keys.add(KEY_SPACE);
       gameState->keyMappings[MOUSE_MIDDLE].keys.add(KEY_MOUSE_MIDDLE);
+      gameState->keyMappings[SAVE_STATE].keys.add(KEY_SEMICOLON);
     }
 
 
@@ -566,29 +751,95 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
     renderData->gameCamera.position.y = -90;
   
     {
+      Sprite sprite = get_sprite(SPRITE_SOLID_01);
       Solid solid = {};
+      int platform_size = sprite.sprite_size.x;
+
       solid.spriteID = SPRITE_SOLID_01;
-      solid.keyframes.add({8 * 2,  8 * 10});
+      solid.keyframes.add({8 * 3,  8 * 10});
       solid.keyframes.add({8 * 10, 8 * 10});
       solid.pos = {8 * 2, 8 * 10};
       solid.speed.x = 50.0f;
+      solid.slip = 0.100f;
       gameState->solids.add(solid);
+      
+    //static fire block
+    // for(int i=0;i<8*2;i++){
+    // for(int j=0;j<8*6;j++){
+    //       Static_solids statSolid = {};
+    //       statSolid.spriteID = SPRITE_FIRE;
+    //       statSolid.pos = {8*29+j,8*17+i};
+    //       gameState->static_solids.add(statSolid);
+    //   }
+    // }
+    Static_solids statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*29,8*18+4};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*30,8*18+4};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*31,8*18+4};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*32,8*18+4};
+    gameState->static_solids.add(statSolid);
 
-      solid = {};
-      solid.spriteID = SPRITE_SOLID_02;
-      solid.keyframes.add({12 * 20, 8 * 10});
-      solid.keyframes.add({12 * 20, 8 * 20});
-      solid.pos = {12 * 20, 8 * 10};
-      solid.speed.y = 50.0f;
-      gameState->solids.add(solid);
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*33,8*18+4};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*34,8*18+4};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID =SPRITE_MAGMA;
+    statSolid.pos = {4+8*35,8*18+4};
+    gameState->static_solids.add(statSolid);
+
+    
+    //     for(int i=0;i<8*1;i++){
+    //       for(int j=0;j<8*2;j++){
+    //       Static_solids statSolid = {};
+    //       statSolid.spriteID = SPRITE_FIRE;
+    //       statSolid.pos = {8*2+j,8*(17) +i};
+    //       gameState->static_solids.add(statSolid);
+    //   }
+    // } 
+    //hardcoding for now
+    statSolid = {};
+    statSolid.spriteID = SPRITE_MAGMA;
+    statSolid.pos = {12,8*19};
+    gameState->static_solids.add(statSolid);
+    
+    statSolid = {};
+    statSolid.spriteID = SPRITE_MAGMA;
+    statSolid.pos = {20,8*19};
+    gameState->static_solids.add(statSolid);
+
+    statSolid = {};
+    statSolid.spriteID = SPRITE_MAGMA;
+    statSolid.pos = {28,8*19};
+    gameState->static_solids.add(statSolid);
     }
+    
   }
 
   {
     gameState->updateTimer += dt;
     while(gameState->updateTimer >= UPDATE_DELAY){
       gameState->updateTimer -= UPDATE_DELAY;
-      simulate();
+      simulate(loaded_tiles);
 
       input->relMouse = input->mousePos - input->prevMousePos;
       input->prevMousePos = input->mousePos;
@@ -612,11 +863,26 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
       draw_sprite(solid.spriteID, solidPos);
     }
   }
+  {
+    for(int statsolidIdx = 0; statsolidIdx<gameState->static_solids.count;statsolidIdx++){
+      Static_solids& solid = gameState->static_solids[statsolidIdx];
+      draw_sprite(solid.spriteID, solid.pos);
+    }
+  }
   
   {//player
+    {
     Player& player = gameState->player;
-    IVec2 playerPos = lerp(player.prevPos,player.pos,interpolatedDT);
-    draw_sprite(SPRITE_CELESTE,playerPos);
+    IVec2 playerPos = lerp(player.prevPos, player.pos, interpolatedDT);
+    
+    Sprite sprite = get_sprite(player.animationSprites[player.animationState]);
+    int animationIdx = animate(&player.runAnimateTime, sprite.frameCount, 0.6f);
+    draw_sprite(player.animationSprites[player.animationState], playerPos, 
+                {
+                  .animationIdx = animationIdx,
+                  .renderOptions = player.renderOptions
+                });
+  }
   }
 
   {//draw tileset
@@ -640,4 +906,5 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
       }
     }
   }
+}
 }

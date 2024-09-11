@@ -1,11 +1,18 @@
 #version 430 core
 
+#define BIT(x) 1 << x;
+
+int RENDER_OPTION_FLIP_X = BIT(0);
+int RENDER_OPTION_FLIP_Y = BIT(1);
+
 //structs
 struct Transform{
     ivec2 atlas_offset;
     ivec2 sprite_size;
     vec2 pos;
     vec2 size;
+    int animationIdx;
+    int renderOptions;
 };
 
 //input
@@ -36,10 +43,25 @@ void main()
     transform.pos + transform.size  // Bottom Right
   };
 
-  float left = transform.atlas_offset.x;
-  float top = transform.atlas_offset.y;
-  float right = transform.atlas_offset.x + transform.sprite_size.x;
-  float bottom = transform.atlas_offset.y + transform.sprite_size.y;
+  int left = transform.atlas_offset.x;
+  int top = transform.atlas_offset.y;
+  int right = transform.atlas_offset.x + transform.sprite_size.x;
+  int bottom = transform.atlas_offset.y + transform.sprite_size.y;
+
+  if(bool(transform.renderOptions & RENDER_OPTION_FLIP_X))
+  {
+    int tmp = left;
+    left = right;
+    right = tmp;
+  }
+
+  if(bool(transform.renderOptions & RENDER_OPTION_FLIP_Y))
+  {
+    int tmp = top;
+    top = bottom;
+    bottom = tmp;
+  }
+
 
   vec2 textureCoords[6] = {
     vec2(left,top),

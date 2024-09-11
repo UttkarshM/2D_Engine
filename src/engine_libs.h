@@ -16,6 +16,7 @@
 #define DEBUG_BREAK() __builtin_debugtrap()
 #endif
 
+#define ArraySize(x) (sizeof(x)/sizeof((x)[0]))
 
 #define b8 char
 #define BIT(x) 1<<(x)
@@ -23,10 +24,9 @@
 #define MB(x) ((unsigned long long) 1024*KB(x))
 #define GB(x) ((unsigned long long) 1024*MB(x))
 
-
-
-
-
+//for wav files
+constexpr int NUM_CHANNELS = 2;
+constexpr int SAMPLE_RATE = 44100;
 
 //logging
 enum TextColor
@@ -100,7 +100,8 @@ void _log(char* prefix, char* msg, TextColor textColor, Args... args)
 template<typename T, int N>
 struct Array
 {
-  static constexpr int maxElements = N;
+
+static constexpr int maxElements = N;
   int count = 0;
   T elements[N];
 
@@ -113,7 +114,7 @@ struct Array
 
   int add(T element)
   {
-    EN_ASSERT(count < maxElements, "Array Full!");
+    EN_ASSERT(count < maxElements, "Array Fuldl!");
     elements[count] = element;
     return count++;
   }
@@ -536,3 +537,52 @@ Mat4 orthographic_projection(float left, float right, float top, float bottom)
   return result;
 }
 
+//more references https://stackoverflow.com/questions/13660777/c-reading-the-data-part-of-a-wav-file
+struct WAVHeader
+{
+  // Riff Chunk
+	unsigned int riffChunkId;
+	unsigned int riffChunkSize;
+	unsigned int format;
+
+  // Format Chunk
+	unsigned int formatChunkId;
+	unsigned int formatChunkSize;
+	unsigned short audioFormat;
+	unsigned short numChannels;
+	unsigned int sampleRate;
+	unsigned int byteRate;
+	unsigned short blockAlign;
+	unsigned short bitsPerSample;
+
+  // Data Chunk
+	unsigned char dataChunkId[4];
+	unsigned int dataChunkSize;
+};
+
+struct WAVFile
+{
+	WAVHeader header;
+	char dataBegin;
+};
+
+WAVFile* load_wav(char* path, BumpAllocator* bumpAllocator)
+{
+	int fileSize = 0;
+	WAVFile* wavFile = (WAVFile*)read_file(path, &fileSize, bumpAllocator);
+	if(!wavFile) 
+  { 
+    EN_ASSERT(0, "Failed to load Wave File: %s", path);
+    return nullptr;
+  }
+
+	EN_ASSERT(wavFile->header.numChannels == NUM_CHANNELS, 
+            "We only support 2 channels for now!");
+	EN_ASSERT(wavFile->header.sampleRate == SAMPLE_RATE, 
+            "We only support 44100 sample rate for now!");
+
+	EN_ASSERT(memcmp(&wavFile->header.dataChunkId, "data", 4) == 0, 
+						"WAV File not in propper format");
+
+	return wavFile;
+}

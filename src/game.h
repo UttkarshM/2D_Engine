@@ -1,8 +1,10 @@
 #pragma once
 
+#include "assets.h"
 #include "engine_libs.h"
 #include "render_interface.h"
 #include "input.h"
+#include "sound.h"
 
 //global
 constexpr int tset=5;
@@ -28,6 +30,8 @@ enum GameInputType
     MOUSE_RIGHT,
     MOUSE_MIDDLE,
 
+    SAVE_STATE,
+
     GAME_INPUT_COUNT
 };
 
@@ -41,11 +45,23 @@ struct Tile{
     bool isVisible;
 };
 
+enum PlayerAnimateState
+{
+    PLAYER_ANIMATE_IDLE,
+    PLAYER_ANIMATE_RUN,
+    PLAYER_ANIMATE_JUMP,
+    PLAYER_ANIMATE_COUNT
+};
+
 struct Player{
     IVec2 pos;
     IVec2 prevPos;
     Vec2 speed;
     Vec2 solidSpeed;
+    int renderOptions;
+    float runAnimateTime;
+    PlayerAnimateState animationState;
+    SpriteID animationSprites[PLAYER_ANIMATE_COUNT];
 };
 
 struct Solid{
@@ -56,13 +72,21 @@ struct Solid{
     Vec2 speed;
     int keyframeIdx;
     Array<IVec2,2>keyframes;
+    
+    float slip;
+};
+
+struct Static_solids{
+    SpriteID spriteID;
+    IVec2 pos;
 };
 
 struct GameState{
     float updateTimer;
     bool initialized = false;
     Player player;
-    Array<Solid, 100> solids;
+    Array<Solid, 1000> solids;
+    Array<Static_solids,1000> static_solids;
     Array<IVec2,21> tileCoords; //21 because we use 21 texture points
     Tile worldGrid[WORLD_GRID.x][WORLD_GRID.y];
     KeyMapping keyMappings[GAME_INPUT_COUNT];
@@ -72,6 +96,6 @@ struct GameState{
 static GameState* gameState;
 
 extern "C"{
-    EXPORT_FN void update_game(GameState* gameStateIn,RenderData* renderDataIn ,Input* inputIn,float dt); 
+    EXPORT_FN void update_game(GameState* gameStateIn,RenderData* renderDataIn ,Input* inputIn,float dt,SoundState* soundStateIn); 
 }
 //exposes the function in the dll

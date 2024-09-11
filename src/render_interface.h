@@ -4,11 +4,19 @@
 #include "input.h"
 
 
+int RENDER_OPTION_FLIP_X = BIT(0);
+int RENDER_OPTION_FLIP_Y = BIT(1);
+
 struct OrthographicCamera2D
 {
     float zoom =1.0f;
     Vec2 position;
     Vec2 dimensions;
+};
+struct DrawData
+{
+  int animationIdx;
+  int renderOptions;
 };
 
 struct Transform{ //imp keep vec2 first cause its crashing in the wrong order
@@ -17,7 +25,8 @@ struct Transform{ //imp keep vec2 first cause its crashing in the wrong order
     IVec2 sprite_size;   //for textures
     Vec2 pos;           //for the vertex structure
     Vec2 size;          //for the vertex structure
-
+    int animationIdx;
+    int renderOptions;
 };
 
 struct RenderData{
@@ -25,8 +34,11 @@ struct RenderData{
     OrthographicCamera2D uiCamera;
     int transformCount;
     // Transform transforms[MAX_TRANSFORMS];
-    Array<Transform,1000> transforms;
+    Array<Transform,10000> transforms;
 };
+
+
+
 //globals
 
 static RenderData* renderData;
@@ -82,22 +94,41 @@ void draw_sprite(SpriteID spriteID,Vec2 pos,Vec2 size){
 
     renderData->transforms.add(transform);
 }
-void draw_sprite(SpriteID spriteID, Vec2 pos)
+
+void draw_sprite(SpriteID spriteID, Vec2 pos, DrawData drawData = {})
 {
   Sprite sprite = get_sprite(spriteID);
+  // For Animations, this is a multiple of the sprites size,
+  sprite.atlas_offset.x += drawData.animationIdx * sprite.sprite_size.x;
 
   Transform transform = {};
-  transform.pos.x = pos.x - vec_2(sprite.sprite_size).x / 2.0f;
-  transform.pos.y = pos.y - vec_2(sprite.sprite_size).y / 2.0f;
-  
+  transform.pos = pos - vec_2(sprite.sprite_size) / 2.0f;
   transform.size = vec_2(sprite.sprite_size);
   transform.atlas_offset = sprite.atlas_offset;
   transform.sprite_size = sprite.sprite_size;
+  transform.renderOptions = drawData.renderOptions;
 
-renderData->transforms.add(transform);
+  renderData->transforms.add(transform);
 }
 
-void draw_sprite(SpriteID spriteID, IVec2 pos)
+void draw_sprite(SpriteID spriteID, IVec2 pos, DrawData drawData = {})
+{w
+  draw_sprite(spriteID, vec_2(pos), drawData);
+}
+
+int animate(float* time, int frameCount, float duration = 1.0f)
 {
-    draw_sprite(spriteID,vec_2(pos));
-}
+  while(*time > duration)
+  {
+    *time -= duration;
+  }
+  
+  int animationIdx = (int)((*time / duration) * frameCount);
+  
+  if (animationIdx >= frameCount)
+  {
+    animationIdx = frameCount - 1;
+  }
+  
+  return animationIdx;
+} 

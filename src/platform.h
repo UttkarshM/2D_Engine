@@ -1,4 +1,5 @@
 #pragma  once
+static float musicVolume = 0.25f;
 static bool running = true;
 
 bool platform_create_window(int width, int height, char* title);
@@ -10,3 +11,6 @@ void* platform_load_dynamic_function(void *dll,char *funName);
 void* platform_load_dynamic_library(char *dll);
 bool platform_free_dynamic_library(void *dll);
 void platform_fill_keycode_lookup_table();
+bool platform_init_audio();
+void platform_update_audio(float dt);
+void platform_sleep(unsigned int ms);
