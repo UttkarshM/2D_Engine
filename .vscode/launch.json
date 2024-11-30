@@ -1,14 +1,38 @@
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+
+//       {
+//         "name": "Launch",
+//         "type": "lldb",
+//         "request": "launch",
+//         "program": "${workspaceFolder}/engine",
+//         "args": [],
+//         "cwd": "${workspaceFolder}",
+//         "console": "integratedTerminal"
+//       }
+//     ]
+//   }
+
 {
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "Launch",
-        "type": "lldb",
-        "request": "launch",
-        "program": "${workspaceFolder}/engine",
-        "args": [],
-        "cwd": "${workspaceFolder}",
-        "console": "integratedTerminal"
-      }
-    ]
-  }
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Linux Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/engine",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+    },
+    {
+      "name": "Windows Launch",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/engine.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
