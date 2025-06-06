@@ -1,210 +1,62 @@
 #include "game.h"
-#include "assets.h"
-#include "engine_libs.h"
+#include "sprites.h"
+#include "core.h"
 #include "input.h"
 #include "render_interface.h"
 #include "sound.h"
-#include <fstream>
-#include <iostream>
 #include <vector>
-#include <string>
 #include <utility>
 #define step 3
 
+static bool grounded = false;
+constexpr float runSpeed = 2.0f;
+constexpr float runAcceleration = 10.0f;
+constexpr float runReduce = 22.0f;
+constexpr float flyReduce =10.0f;
+constexpr float gravity = 13.0f;
+constexpr float fallSpeed = 2.6f;
+constexpr float jumpSpeed = -3.0f;
 
-bool just_pressed(GameInputType type)
+// static GameState* gameState;
+void game_keyMappings()
 {
-  KeyMapping mapping = gameState->keyMappings[type];
-  for(int idx = 0; idx < mapping.keys.count; idx++)
-  {
-    if(input->keys[mapping.keys[idx]].justPressed)
-    {
-      return true;
-    }
-  }
-
-  return false;
+  gameState->keyMappings[MOVE_UP].keys.add(KEY_W);
+  gameState->keyMappings[MOVE_UP].keys.add(KEY_UP);
+  gameState->keyMappings[MOVE_LEFT].keys.add(KEY_A);
+  gameState->keyMappings[MOVE_LEFT].keys.add(KEY_LEFT);
+  gameState->keyMappings[MOVE_DOWN].keys.add(KEY_S);
+  gameState->keyMappings[MOVE_DOWN].keys.add(KEY_DOWN);
+  gameState->keyMappings[MOVE_RIGHT].keys.add(KEY_D);
+  gameState->keyMappings[MOVE_RIGHT].keys.add(KEY_RIGHT);
+  gameState->keyMappings[MOUSE_LEFT].keys.add(KEY_MOUSE_LEFT);
+  gameState->keyMappings[MOUSE_RIGHT].keys.add(KEY_MOUSE_RIGHT);
+  gameState->keyMappings[JUMP].keys.add(KEY_SPACE);
+  gameState->keyMappings[MOUSE_MIDDLE].keys.add(KEY_MOUSE_MIDDLE);
+  gameState->keyMappings[SAVE_STATE].keys.add(KEY_SEMICOLON);
 }
 
-bool is_down(GameInputType type)
+void reached_destination()
 {
-  KeyMapping mapping = gameState->keyMappings[type];
-  for (int idx = 0; idx < mapping.keys.count; idx++)
-  {
-    if (input->keys[mapping.keys[idx]].isDown)
-    {
-      return true;
-    }
-  }
-
-  return false;
+  Player& player = gameState->player;
+  player.pos = {0,0};
+  EN_TRACE("Reached destination");
 }
 
-IVec2 get_grid_pos(IVec2 worldPos){
-  return {worldPos.x/TILESIZE,worldPos.y/TILESIZE};
-}
-
-Tile* get_tile(int x,int y){
-  Tile* tile = nullptr;
-  if (x >= 0 && x < WORLD_GRID.x && y >= 0 && y < WORLD_GRID.y) {
-    tile = &gameState->worldGrid[x][y];
-  }
-  return tile;
-}
-
-
-Tile* get_tile(IVec2 worldPos)
+void player_actions()
 {
-  IVec2 gridPos = get_grid_pos(worldPos);
-  return get_tile(gridPos.x, gridPos.y);
-}
-
-
-IVec2 get_tile_pos(int x,int y){
-  return {x*TILESIZE,y*TILESIZE};
-}
-
-IRect get_tile_rect(int x,int y){
-  return {get_tile_pos(x,y), 8, 8};
-}
-
-
-IRect get_player_rect(){
-  return{
-    gameState->player.pos.x - 4,
-    gameState->player.pos.y - 8,
-    8,
-    16
-  };
-}
-
-bool inside_rect(IRect hitbox, IVec2 pos){
-  if(hitbox.pos.x<=pos.x && hitbox.pos.x+hitbox.size.x>=pos.x
-    && hitbox.pos.y<=pos.y && hitbox.pos.y+hitbox.size.y>=pos.y
-  ){
-    return true;
-  }
-  return false;
-}
-
-bool inside_static_rect(IRect hitbox, IVec2 pos){
-  if(((hitbox.pos.x<=pos.x && hitbox.pos.x+hitbox.size.x>=pos.x) || (hitbox.pos.x <= pos.x - 4 && hitbox.pos.x+hitbox.size.x>=pos.x - 4)) //dies as he reaches halfway of the block
-    && ((hitbox.pos.y<=pos.y && hitbox.pos.y+hitbox.size.y>=pos.y) || (hitbox.pos.y <= pos.y - 4 && hitbox.pos.y+hitbox.size.y>=pos.y -4))
-  ){
-    return true;
-  }
-  return false;
-}
-
-
-IRect get_solid_rect(Solid solid){
-  Sprite sprite = get_sprite(solid.spriteID);
-  return {solid.pos - sprite.sprite_size/2,sprite.sprite_size};
-}
-
-bool save_tile_set() {
-  std::fstream file, file1;
-
-  file.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile", std::ios::out);
-  if (!file) {
-    EN_ERROR("failed to open file");
-    return false; // Moved this line inside the if-block.
-  }
-
-  file << ""; // Empties the file.
-  file.close();
-
-  file1.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile", std::ios::app);
   
-  // Open file in append mode to write data.
-  if (!file1) {
-    EN_ERROR("failed to open file in append mode");
-    return false;
-  }
-  std::string coOrds = "";
-  for (int y = 0; y < WORLD_GRID.y; y++) {
-    for (int x = 0; x < WORLD_GRID.x; x++) {
-      Tile* tile = get_tile(x, y);
-      if(tile->isVisible){
-        coOrds+=std::to_string(x)+"-"+std::to_string(y)+"\n";
-      }
-    }
-  }
-  coOrds.pop_back();
-  file1 << coOrds;
-
-  file1.close(); // Correctly close the file opened in append mode.
-  return true;
-}
-
-IVec2 parse_coords(std::string str) {
-    int ind = 0;
-    int res[2] = {0, 0}; // initialize both coordinates to zero
-    for (int i = 0; i < str.length(); i++) {
-        if (str[i] == '-') {
-            ind++; // Move to the next index when a '-' is encountered
-            if (ind > 1) break; // Prevent out-of-bounds error
-        } else {
-            res[ind] = res[ind] * 10 + (str[i] - '0'); // Accumulate the current number
-        }
-    }
-    IVec2 r = {res[0], res[1]};
-    return r;
-}
-
-std::vector<std::pair<int, int>> load_tile_set(GameState* gameState){
-    std::fstream file;
-    std::string temp;
-
-    std::vector<std::pair<int, int>> tiles = {};
-
-    file.open("C:/Users/uttka/Desktop/god/src/tiles/test2.tile",std::ios::in);
-    if (!file) {
-      EN_ERROR("failed to open file");
-      return {}; // Moved this line inside the if-block.
-    }
-    while(std::getline(file,temp)){
-      // EN_TRACE("in loop");
-      if(temp=="\n"){
-        continue;
-      }
-      
-      IVec2 coords = parse_coords(temp);
-      gameState->worldGrid[coords.x][coords.y].isVisible=true;
-    }
-    file.close();
-    return tiles;
-}
-
-
-void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
-
-  float dt = UPDATE_DELAY;
-  {
+    float dt = UPDATE_DELAY;
     Player& player = gameState->player;
     player.prevPos = player.pos;
-
-    static Vec2 remainder = {};
-    static bool grounded = false;
-    constexpr float runSpeed = 2.0f;
-    constexpr float runAcceleration = 10.0f;
-    constexpr float runReduce = 22.0f;
-    constexpr float flyReduce =10.0f;
-    constexpr float gravity = 13.0f;
-    constexpr float fallSpeed = 2.6f;
-    constexpr float jumpSpeed = -3.0f;
-
-//bounds    
+    
+    //bounds    
     if(player.pos.x>320){ //exit
-      player.pos={0,0};
+      reached_destination();
       EN_TRACE("Won");
     }
     if(player.pos.x<0){ //stops from falling off of the map
       player.pos={0,0};
     }
-
-
-
 
     if((just_pressed(JUMP) || just_pressed(MOVE_UP)) && grounded){
       player.speed.y = jumpSpeed;
@@ -261,13 +113,7 @@ void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
     //Map
     if(just_pressed(MOUSE_MIDDLE))
       {
-
-        if(loaded_tiles.empty()){
-          EN_ERROR("couldnt load");
-        }
-        else{
-          EN_TRACE("loaded tile set");
-        }
+        load_tile_set();
 
         player.pos ={8*2,8+2};
         player.speed ={0,0};
@@ -281,7 +127,8 @@ void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
           EN_TRACE("saved tile set");
         }
     }
-    //Physics
+
+
     //Friction
     if(!is_down(MOVE_LEFT) && !is_down(MOVE_RIGHT)){
       if(grounded){
@@ -291,10 +138,40 @@ void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
         player.speed.x = approach(player.speed.x, 0.0f, flyReduce*dt);
       }
     }
+}
 
-    //gravity
-    player.speed.y = approach(player.speed.y, fallSpeed,gravity *dt);
+void load_tile_set()
+{
+  std::vector<std::pair<int, int>> loaded_tiles = load_tile_set(gameState);
+  if(loaded_tiles.empty()){
+    EN_ERROR("couldnt load tile set");
+  }
+  else{
+    EN_TRACE("loaded tile set");
+  }
+}
 
+void add_static_solid(SpriteID spriteID, IVec2 pos, Vec2 speed, float slip)
+{
+  Static_solids solid = {};
+  solid.spriteID = spriteID;
+  solid.pos = {pos.x, pos.y};
+  gameState->static_solids.add(solid);
+}
+
+void add_solid(SpriteID spriteID, IVec2 pos, Vec2 speed, float slip);
+
+void simulate(std::vector<std::pair<int,int>>& loaded_tiles){
+
+  float dt = UPDATE_DELAY;
+  {
+    Player& player = gameState->player;
+    player.prevPos = player.pos;
+
+    static Vec2 remainder = {};
+
+
+    player_actions();
 
     {
       IRect playerRect = get_player_rect();
@@ -730,22 +607,6 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
       gameState->tileCoords.add({tilesPosition.x, tilesPosition.y + 5 * 8});
     }
 
-    {
-      gameState->keyMappings[MOVE_UP].keys.add(KEY_W);
-      gameState->keyMappings[MOVE_UP].keys.add(KEY_UP);
-      gameState->keyMappings[MOVE_LEFT].keys.add(KEY_A);
-      gameState->keyMappings[MOVE_LEFT].keys.add(KEY_LEFT);
-      gameState->keyMappings[MOVE_DOWN].keys.add(KEY_S);
-      gameState->keyMappings[MOVE_DOWN].keys.add(KEY_DOWN);
-      gameState->keyMappings[MOVE_RIGHT].keys.add(KEY_D);
-      gameState->keyMappings[MOVE_RIGHT].keys.add(KEY_RIGHT);
-      gameState->keyMappings[MOUSE_LEFT].keys.add(KEY_MOUSE_LEFT);
-      gameState->keyMappings[MOUSE_RIGHT].keys.add(KEY_MOUSE_RIGHT);
-      gameState->keyMappings[JUMP].keys.add(KEY_SPACE);
-      gameState->keyMappings[MOUSE_MIDDLE].keys.add(KEY_MOUSE_MIDDLE);
-      gameState->keyMappings[SAVE_STATE].keys.add(KEY_SEMICOLON);
-    }
-
 
     renderData->gameCamera.position.x = 160;
     renderData->gameCamera.position.y = -90;
@@ -763,75 +624,20 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
       solid.slip = 0.100f;
       gameState->solids.add(solid);
       
-    //static fire block
-    // for(int i=0;i<8*2;i++){
-    // for(int j=0;j<8*6;j++){
-    //       Static_solids statSolid = {};
-    //       statSolid.spriteID = SPRITE_FIRE;
-    //       statSolid.pos = {8*29+j,8*17+i};
-    //       gameState->static_solids.add(statSolid);
-    //   }
-    // }
-    Static_solids statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*29,8*18+4};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*30,8*18+4};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*31,8*18+4};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*32,8*18+4};
-    gameState->static_solids.add(statSolid);
+      add_static_solid(SPRITE_MAGMA, {4+8*29,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*30,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*31,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*32,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*33,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*34,8*18+4}, {0, 0}, 0.1f);
+      add_static_solid( SPRITE_MAGMA, {4+8*35,8*18+4}, {0, 0}, 0.1f);
 
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*33,8*18+4};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*34,8*18+4};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID =SPRITE_MAGMA;
-    statSolid.pos = {4+8*35,8*18+4};
-    gameState->static_solids.add(statSolid);
+      add_static_solid( SPRITE_MAGMA, {12, 8 * 19}, {0, 0}, 0.1f);
 
-    
-    //     for(int i=0;i<8*1;i++){
-    //       for(int j=0;j<8*2;j++){
-    //       Static_solids statSolid = {};
-    //       statSolid.spriteID = SPRITE_FIRE;
-    //       statSolid.pos = {8*2+j,8*(17) +i};
-    //       gameState->static_solids.add(statSolid);
-    //   }
-    // } 
-    //hardcoding for now
-    statSolid = {};
-    statSolid.spriteID = SPRITE_MAGMA;
-    statSolid.pos = {12,8*19};
-    gameState->static_solids.add(statSolid);
-    
-    statSolid = {};
-    statSolid.spriteID = SPRITE_MAGMA;
-    statSolid.pos = {20,8*19};
-    gameState->static_solids.add(statSolid);
+      add_static_solid( SPRITE_MAGMA, {20, 8 * 19}, {0, 0}, 0.1f);
+      // add_static_solid( SPRITE_MAGMA, {28, 8 * 19}, {0, 0}, 0.1f);
 
-    statSolid = {};
-    statSolid.spriteID = SPRITE_MAGMA;
-    statSolid.pos = {28,8*19};
-    gameState->static_solids.add(statSolid);
-    }
+      }
     
   }
 
@@ -877,11 +683,11 @@ EXPORT_FN void update_game(GameState* gameStateIn, RenderData* renderDataIn, Inp
     
     Sprite sprite = get_sprite(player.animationSprites[player.animationState]);
     int animationIdx = animate(&player.runAnimateTime, sprite.frameCount, 0.6f);
+    DrawData drawData = {};
+    drawData.animationIdx = animationIdx;
+    drawData.renderOptions = player.renderOptions;
     draw_sprite(player.animationSprites[player.animationState], playerPos, 
-                {
-                  .animationIdx = animationIdx,
-                  .renderOptions = player.renderOptions
-                });
+                drawData);
   }
   }
 

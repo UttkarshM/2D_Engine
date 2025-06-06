@@ -1,8 +1,8 @@
 #include "platform.h"
-#include "engine_libs.h"
+#include "core.h"
 #include <xaudio2.h>
 #include "input.h"
-#include "../third_party/wglext.h"
+#include "../../third_party/wglext.h"
 #include <winuser.h>
 
 // #############################################################################

@@ -1,6 +1,6 @@
 #pragma once
-#include "engine_libs.h"
-#include "assets.h"
+#include "core.h"
+#include "sprites.h"
 #include "input.h"
 
 
@@ -112,7 +112,7 @@ void draw_sprite(SpriteID spriteID, Vec2 pos, DrawData drawData = {})
 }
 
 void draw_sprite(SpriteID spriteID, IVec2 pos, DrawData drawData = {})
-{w
+{
   draw_sprite(spriteID, vec_2(pos), drawData);
 }
 

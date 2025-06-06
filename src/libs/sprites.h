@@ -1,5 +1,5 @@
 #pragma once
-#include "engine_libs.h"
+#include "core.h"
 
 //assets
 enum SpriteID{
@@ -77,3 +77,12 @@ Sprite get_sprite(SpriteID spriteID){
     }
     return sprite;
 }
+
+
+// void add_static_solid(SpriteID spriteID, IVec2 pos, Vec2 speed, float slip)
+// {
+//   Static_solids solid = {};
+//   solid.spriteID = spriteID;
+//   solid.pos = {pos.x, pos.y};
+//   gameState->static_solids.add(solid);
+// }

@@ -6,3 +6,5 @@ test.h
 *.exp
 *.lib
 *.a
+.vscode/
+build_errors.txt

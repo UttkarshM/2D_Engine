@@ -1,6 +1,6 @@
 #pragma once
-#include "engine_libs.h"
-#include "../third_party/glcorearb.h"
+#include "core.h"
+#include "../../third_party/glcorearb.h"
  
 // #############################################################################
 //                           OpenGL Function Pointers

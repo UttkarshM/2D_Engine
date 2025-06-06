@@ -1,10 +1,13 @@
 #include "gl_renderer.h"
-#include "engine_libs.h"
+#include "core.h"
 #include "render_interface.h"
+#include <iostream>
+#include <string>
 
+#define GL_GLEXT_PROTOTYPES
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../third_party/stb_image.h"
+#include "../../third_party/stb_image.h"
 
 
 struct GLContext
@@ -21,7 +24,7 @@ struct GLContext
 
 static GLContext glContext;
 
-const char* TEXTURE_PATH = "C:/Users/uttka/Desktop/god/assets/texture/TEXTURE_ATLAS (2).png";
+const char* TEXTURE_PATH = "assets/texture/test_fixed.png";
 static void APIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                          GLsizei length, const GLchar* message, const void* user)
 {
@@ -71,17 +74,22 @@ bool gl_init(BumpAllocator* transientStorage)
   glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
   glEnable(GL_DEBUG_OUTPUT);
 
-  GLuint vertShaderID = gl_create_shader(GL_VERTEX_SHADER, "C:/Users/uttka/Desktop/god/assets/shaders/quad.vert",transientStorage);
-  
-  GLuint fragShaderID = gl_create_shader(GL_FRAGMENT_SHADER, "C:/Users/uttka/Desktop/god/assets/shaders/quad.frag",transientStorage);
+  std::string vertShaderPath = std::string(ROOT_DIR) + "assets/shaders/quad.vert";
+  std::string fragShaderPath = std::string(ROOT_DIR) + "assets/shaders/quad.frag";
+
+  char* vertShaderPathCStr = (char*)vertShaderPath.c_str();
+  char* fragShaderPathCStr = (char*)fragShaderPath.c_str();
+
+  GLuint vertShaderID = gl_create_shader(GL_VERTEX_SHADER, vertShaderPathCStr, transientStorage);
+  GLuint fragShaderID = gl_create_shader(GL_FRAGMENT_SHADER, fragShaderPathCStr, transientStorage);
 
   if(!vertShaderID || !fragShaderID){
     EN_ASSERT(false, "failed to create shaders");
     return false;
   }
 
-  long long timestampVert = get_timestamp("C:/Users/uttka/Desktop/god/assets/shaders/quad.vert");
-  long long timestampFrag = get_timestamp("C:/Users/uttka/Desktop/god/assets/shaders/quad.frag");
+  long long timestampVert = get_timestamp(vertShaderPath.c_str());
+  long long timestampFrag = get_timestamp(fragShaderPath.c_str());
 
   glContext.shaderTimestamp = max(timestampVert,timestampFrag);
 

@@ -1,24 +1,23 @@
 
 #include <chrono>
-#include "engine_libs.h"
+#include "libs/core.h"
 
-#include "input.h"
+#include "libs/input.h"
 
-#include "game.h"
-#include "sound.h"
+#include "libs/game.h"
+#include "libs/sound.h"
 
-// #define APIENTRY
 #define GL_GLEXT_PROTOTYPES
 #include "../third_party/glcorearb.h"
 
 static KeyCodeID KeyCodeLookupTable[KEY_COUNT];
 
-#include "platform.h"
+#include "libs/platform.h"
 #ifdef _WIN32
-#include "windows_platform.cpp"
+#include "libs/windows_platform.cpp"
 #endif
 
-#include "gl_renderer.cpp"
+#include "libs/gl_renderer.cpp"
 
 // This is the function pointer to update_game in game.cpp
 typedef decltype(update_game) update_game_type;
@@ -31,6 +30,7 @@ void reload_game_dll(BumpAllocator* transientStorage);
 
 int main()
 {
+  {
   BumpAllocator transientStorage = make_bump_allocator(MB(600));
   BumpAllocator persistentStorage = make_bump_allocator(MB(600));
 
@@ -69,14 +69,12 @@ int main()
     return -1;
   }
   platform_fill_keycode_lookup_table();
-  platform_create_window(1280, 720, "Schnitzel Motor");
+  platform_create_window(1280, 720, "Window");
   platform_set_vsync(true);
   if(!platform_init_audio()){
     EN_ERROR( "Failed to initialize Audio");
     return -1;
   }
-  // input->screenSizeX = 1200;
-  // input->screenSizeY = 720;
 
   gl_init(&transientStorage);
 
@@ -94,6 +92,7 @@ int main()
     platform_swap_buffers();
 
     transientStorage.used = 0;
+  }
   }
 
   return 0;
