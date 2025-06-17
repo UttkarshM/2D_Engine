@@ -13,7 +13,8 @@ enum SpriteID{
     SPRITE_CELESTE_RUN,
     SPRITE_CELESTE_JUMP,
     SPRITE_SOLID_01,
-    SPRITE_SOLID_02    
+    SPRITE_SOLID_02,
+    SPRITE_CROWN, 
 };
 
 
@@ -64,25 +65,21 @@ Sprite get_sprite(SpriteID spriteID){
             break;
         }
         case SPRITE_SOLID_01:{
-        sprite.atlas_offset = {0, 16};
-        sprite.sprite_size = {28, 18};
-        break;
+            sprite.atlas_offset = {0, 16};
+            sprite.sprite_size = {28, 18};
+            break;
         }
 
         case SPRITE_SOLID_02:{
-        sprite.atlas_offset = {32, 16};
-        sprite.sprite_size = {16, 13};
-        break;
+            sprite.atlas_offset = {32, 16};
+            sprite.sprite_size = {16, 13};
+            break;
+        }
+        case SPRITE_CROWN:{
+            sprite.atlas_offset = {35, 0};
+            sprite.sprite_size = {8, 3};
+            break;
         }
     }
     return sprite;
 }
-
-
-// void add_static_solid(SpriteID spriteID, IVec2 pos, Vec2 speed, float slip)
-// {
-//   Static_solids solid = {};
-//   solid.spriteID = spriteID;
-//   solid.pos = {pos.x, pos.y};
-//   gameState->static_solids.add(solid);
-// }

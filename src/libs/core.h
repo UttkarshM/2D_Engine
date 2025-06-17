@@ -9,7 +9,9 @@
 #include <sys/stat.h>
 
 
-#define ROOT_DIR "C:/Users/uttka/Desktop/god/"
+#define ROOT_DIR "./"
+
+#define get_root_dir() ROOT_DIR
 
 #ifdef _WIN32
 #define DEBUG_BREAK() __debugbreak()
@@ -585,7 +587,6 @@ WAVFile* load_wav(char* path, BumpAllocator* bumpAllocator)
 
 	return wavFile;
 }
-
 
 
 

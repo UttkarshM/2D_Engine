@@ -190,7 +190,7 @@ IRect get_solid_rect(Solid solid){
 
 bool save_tile_set() {
   std::fstream file, file1;
-  std::string filePath = std::string(ROOT_DIR) + "src/tiles/test2.tile";
+  std::string filePath = std::string(get_root_dir()) + "src/tiles/test2.tile";
 
   file.open(filePath, std::ios::out);
   if (!file) {
@@ -201,7 +201,7 @@ bool save_tile_set() {
   file << ""; // Empties the file.
   file.close();
 
-  std::string file_path = std::string(ROOT_DIR) + "src/tiles/test2.tile";
+  std::string file_path = std::string(get_root_dir()) + "src/tiles/test2.tile";
 
   file1.open(file_path, std::ios::app);
   
@@ -246,7 +246,7 @@ std::vector<std::pair<int, int>> load_tile_set(GameState* gameState){
     std::string temp;
 
     std::vector<std::pair<int, int>> tiles = {};
-    std::string filePath = std::string(ROOT_DIR) + "src/tiles/test2.tile";
+    std::string filePath = std::string(get_root_dir()) + "src/tiles/test2.tile";
 
     file.open(filePath,std::ios::in);
     if (!file) {

@@ -7,6 +7,14 @@
 #include "sound.h"
 #include "game_libs.h"
 
+constexpr float runSpeed = 2.0f;
+constexpr float runAcceleration = 10.0f;
+constexpr float runReduce = 22.0f;
+constexpr float flyReduce = 10.0f;
+constexpr float gravity = 13.0f;
+constexpr float fallSpeed = 2.6f;
+constexpr float jumpSpeed = -3.0f;
+
 // extern GameState* gameState;
 
 extern "C"{

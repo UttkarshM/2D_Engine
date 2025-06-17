@@ -24,7 +24,7 @@ struct GLContext
 
 static GLContext glContext;
 
-const char* TEXTURE_PATH = "assets/texture/test_fixed.png";
+// TEXTURE_PATH will be constructed dynamically using get_root_dir()
 static void APIENTRY gl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                          GLsizei length, const GLchar* message, const void* user)
 {
@@ -74,8 +74,8 @@ bool gl_init(BumpAllocator* transientStorage)
   glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
   glEnable(GL_DEBUG_OUTPUT);
 
-  std::string vertShaderPath = std::string(ROOT_DIR) + "assets/shaders/quad.vert";
-  std::string fragShaderPath = std::string(ROOT_DIR) + "assets/shaders/quad.frag";
+  std::string vertShaderPath = std::string(get_root_dir()) + "assets/shaders/quad.vert";
+  std::string fragShaderPath = std::string(get_root_dir()) + "assets/shaders/quad.frag";
 
   char* vertShaderPathCStr = (char*)vertShaderPath.c_str();
   char* fragShaderPathCStr = (char*)fragShaderPath.c_str();
@@ -112,7 +112,8 @@ bool gl_init(BumpAllocator* transientStorage)
 // Load the texture
     {
     int width, height, channels;
-    char* data = (char*)stbi_load(TEXTURE_PATH, &width, &height, &channels, 4);
+    std::string texturePath = std::string(get_root_dir()) + "assets/texture/texture.png";
+    char* data = (char*)stbi_load(texturePath.c_str(), &width, &height, &channels, 4);
     if(!data)
     {
       EN_ASSERT(false, "Failed to load texture");
@@ -133,7 +134,7 @@ bool gl_init(BumpAllocator* transientStorage)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 
                  0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-    glContext.textureTimestamp = get_timestamp(TEXTURE_PATH);
+    glContext.textureTimestamp = get_timestamp(texturePath.c_str());
 
     stbi_image_free(data);
   }
@@ -167,11 +168,12 @@ bool gl_init(BumpAllocator* transientStorage)
 
 void gl_render(BumpAllocator* transientStorage) {
   {
-    long long currentTimestamp = get_timestamp(TEXTURE_PATH);
+    std::string texturePath = std::string(get_root_dir()) + "assets/texture/texture.png";
+    long long currentTimestamp = get_timestamp(texturePath.c_str());
     if(currentTimestamp > glContext.textureTimestamp){
       glActiveTexture(GL_TEXTURE0);
       int width, height, nChannels;
-      char* data = (char *)stbi_load(TEXTURE_PATH, &width, &height, &nChannels, 4);
+      char* data = (char *)stbi_load(texturePath.c_str(), &width, &height, &nChannels, 4);
       if(data){
         glContext.textureTimestamp = currentTimestamp;
         glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -181,16 +183,19 @@ void gl_render(BumpAllocator* transientStorage) {
   }
 
   {
-    long long timestampVert = get_timestamp("assets/shaders/quad.vert");
-    long long timestampFrag = get_timestamp("assets/shaders/quad.frag");
+    std::string vertShaderReloadPath = std::string(get_root_dir()) + "assets/shaders/quad.vert";
+    std::string fragShaderReloadPath = std::string(get_root_dir()) + "assets/shaders/quad.frag";
+    
+    long long timestampVert = get_timestamp(vertShaderReloadPath.c_str());
+    long long timestampFrag = get_timestamp(fragShaderReloadPath.c_str());
     
     if(timestampVert > glContext.shaderTimestamp ||
        timestampFrag > glContext.shaderTimestamp)
     {
       GLuint vertShaderID = gl_create_shader(GL_VERTEX_SHADER, 
-                                              "assets/shaders/quad.vert", transientStorage);
+                                              (char*)vertShaderReloadPath.c_str(), transientStorage);
       GLuint fragShaderID = gl_create_shader(GL_FRAGMENT_SHADER, 
-                                              "assets/shaders/quad.frag", transientStorage);
+                                              (char*)fragShaderReloadPath.c_str(), transientStorage);
       if(!vertShaderID || !fragShaderID)
       {
         EN_ASSERT(false, "Failed to create Shaders")
