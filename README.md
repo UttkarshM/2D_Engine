@@ -4,7 +4,7 @@ A custom 2D game engine built in C++ with OpenGL rendering, featuring hot-reload
 
 ## 🎬 Demo
 
-https://github.com/user-attachments/assets/demo.mp4
+![Demo](./demo.mp4)
 
 *Watch the engine in action: platformer physics, tile-based level editing, and real-time gameplay.*
 
