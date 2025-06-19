@@ -2,6 +2,12 @@
 
 A custom 2D game engine built in C++ with OpenGL rendering, featuring hot-reloadable game logic, tile-based level editing, physics simulation, and audio support.
 
+## 🎬 Demo
+
+https://github.com/user-attachments/assets/demo.mp4
+
+*Watch the engine in action: platformer physics, tile-based level editing, and real-time gameplay.*
+
 ## 🎮 Features
 
 ### Core Engine
